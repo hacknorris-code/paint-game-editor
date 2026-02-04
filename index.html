@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Paint game editor</title>
+    <meta name="description" content="mix of paint, powerpoint and a game engine allowing you to script colors on slides">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1e1e2e; color: #cdd6f4; margin: 0; height: 100vh; overflow: hidden; }
+        #toolbar { background: #11111b; padding: 10px 20px; width: 100%; display: flex; gap: 12px; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100; box-sizing: border-box; flex-wrap: wrap; }
+
+        main { display: flex; width: 100%; height: calc(100vh - 80px); justify-content: center; overflow: hidden; }
+
+        #canvas-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; background: #181825; padding: 20px; position: relative; }
+        canvas { background: white; cursor: crosshair; image-rendering: pixelated; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 1px solid #45475a; }
+
+        .sidebar { width: 350px; background: #181825; padding: 20px; border-left: 2px solid #313244; overflow-y: auto; height: 100%; box-sizing: border-box; }
+
+        .script-row { background: #313244; padding: 12px; margin-bottom: 12px; border-radius: 8px; border-left: 10px solid transparent; display: flex; flex-direction: column; gap: 8px; }
+        .row-header { display: flex; justify-content: space-between; align-items: center; }
+        .row-header input[type="color"] { border: none; width: 28px; height: 28px; cursor: pointer; background: none; padding: 0; }
+
+        button { cursor: pointer; padding: 6px 12px; border: none; border-radius: 4px; background: #45475a; color: white; font-weight: bold; font-size: 13px; }
+        button:hover { background: #585b70; }
+        .danger { background: #f38ba8; color: #11111b; }
+        .accent { background: #89b4fa; color: #11111b; }
+        .success { background: #a6e3a1; color: #11111b; }
+        .project-btn { background: #fab387; color: #11111b; }
+
+        textarea { width: 100%; height: 60px; font-family: 'Consolas', monospace; font-size: 11px; background: #1e1e2e; color: #a6e3a1; border: 1px solid #45475a; padding: 8px; border-radius: 4px; box-sizing: border-box; }
+        select { padding: 4px; background: #1e1e2e; color: white; border: 1px solid #45475a; border-radius: 4px; }
+        .indicator { font-size: 1em; font-weight: bold; color: #f5e0dc; min-width: 50px; text-align: center; }
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <label for="colorPicker"><small>brush color:</small></label><input type="color" id="colorPicker" value="#ff0000">
+    <label for="sizePicker"><small>brush size:</small></label><input type="range" id="sizePicker" min="1" max="50" value="10" title="Brush Size">
+
+    <div style="border-left: 1px solid #444; height: 20px; margin: 0 5px;"></div>
+
+    <button onclick="addSlide()">+ New</button>
+    <button onclick="prevSlide()">Prev</button>
+    <span id="slideIndicator" class="indicator">1 / 1</span>
+    <button onclick="nextSlide()">Next</button>
+    <button class="danger" onclick="clearSlide()">Clear</button>
+
+    <div style="border-left: 1px solid #444; height: 20px; margin: 0 5px;"></div>
+
+    <button class="project-btn" onclick="saveProject()">💾 Save Project</button>
+    <button class="project-btn" onclick="document.getElementById('fileInput').click()">📂 Load Project</button>
+    <input type="file" id="fileInput" accept=".json" onchange="loadProject(event)">
+
+    <button class="accent" onclick="toggleMode()" id="modeBtn">Play Mode</button>
+    <button class="success" onclick="exportHTML()" style="margin-left:auto;">Export HTML</button>
+</div>
+
+<main>
+    <div id="canvas-container">
+        <canvas id="paintCanvas" width="800" height="450"></canvas>
+    </div>
+
+    <div class="sidebar">
+        <h3 style="margin-top:0;">Interaction Rules</h3>
+        <button onclick="scanForColors()" style="width:100%; background:#f9e2af; color:#111; margin-bottom:15px; font-weight: bold;">🔍 Detect Drawing Colors</button>
+        <div id="scriptList"></div>
+        <button onclick="addScript()" style="width:100%; background:#b4befe; color:#111;">+ Add Manual Link</button>
+    </div>
+</main>
+
+<script>
+    let slides = [{drawing: null, scripts: []}];
+    let currentSlideIdx = 0;
+    let isDrawing = false;
+    let mode = 'edit';
+
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const colorPicker = document.getElementById('colorPicker');
+    const sizePicker = document.getElementById('sizePicker');
+
+    const Navigator = {
+        next: () => nextSlide(),
+        prev: () => prevSlide(),
+        jump: (idx) => { currentSlideIdx = idx; renderSlide(); }
+    };
+
+    function init() {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('click', handleCanvasClick);
+        renderSlide();
+    }
+
+    function renderSlide() {
+        const slide = slides[currentSlideIdx];
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (slide.drawing) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = slide.drawing;
+        }
+        document.getElementById('slideIndicator').innerText = `${currentSlideIdx + 1} / ${slides.length}`;
+        renderScriptsUI();
+    }
+
+    function draw(e) {
+        if (!isDrawing || mode !== 'edit') return;
+        const x = Math.floor(e.offsetX);
+        const y = Math.floor(e.offsetY);
+        const size = parseInt(sizePicker.value);
+        ctx.fillStyle = colorPicker.value;
+        ctx.fillRect(x - Math.floor(size/2), y - Math.floor(size/2), size, size);
+    }
+
+    function startDrawing(e) { if (mode === 'edit') { isDrawing = true; draw(e); } }
+    function stopDrawing() { if (isDrawing) { isDrawing = false; slides[currentSlideIdx].drawing = canvas.toDataURL(); } }
+
+    function scanForColors() {
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const colors = new Set();
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] === 255 && data[i+1] === 255 && data[i+2] === 255) continue;
+            const hex = "#" + ((data[i] << 16) | (data[i+1] << 8) | data[i+2]).toString(16).padStart(6, '0');
+            colors.add(hex);
+        }
+        colors.forEach(c => {
+            if (!slides[currentSlideIdx].scripts.some(s => s.color.toLowerCase() === c.toLowerCase())) {
+                slides[currentSlideIdx].scripts.push({ color: c, type: 'preset', action: 'next', customJs: '' });
+            }
+        });
+        renderScriptsUI();
+    }
+
+    function renderScriptsUI() {
+        const list = document.getElementById('scriptList');
+        list.innerHTML = '';
+        slides[currentSlideIdx].scripts.forEach((s, i) => {
+            const row = document.createElement('div');
+            row.className = 'script-row';
+            row.style.borderLeftColor = s.color;
+            row.innerHTML = `
+                <div class="row-header">
+                    <input type="color" value="${s.color}" onchange="updateScript(${i}, 'color', this.value)">
+                    <code style="font-size:12px; font-weight:bold;">${s.color.toUpperCase()}</code>
+                    <button class="danger" onclick="removeScript(${i})" style="padding:2px 8px">×</button>
+                </div>
+                <select onchange="updateScript(${i}, 'type', this.value)">
+                    <option value="preset" ${s.type === 'preset' ? 'selected' : ''}>Action</option>
+                    <option value="js" ${s.type === 'js' ? 'selected' : ''}>JS Code</option>
+                </select>
+                ${s.type === 'preset' ? `
+                    <select onchange="updateScript(${i}, 'action', this.value)">
+                        <option value="next" ${s.action === 'next' ? 'selected' : ''}>Next Slide</option>
+                        <option value="prev" ${s.action === 'prev' ? 'selected' : ''}>Prev Slide</option>
+                    </select>
+                ` : `
+                    <textarea spellcheck="false" onchange="updateScript(${i}, 'customJs', this.value)">${s.customJs}</textarea>
+                `}`;
+            list.appendChild(row);
+        });
+    }
+
+    // PROJECT IO
+    function saveProject() {
+        const blob = new Blob([JSON.stringify(slides)], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'my-paint-project.json';
+        a.click();
+    }
+
+    function loadProject(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                slides = JSON.parse(e.target.result);
+                currentSlideIdx = 0;
+                renderSlide();
+                alert("Project loaded successfully!");
+            } catch (err) { alert("Error loading project file."); }
+        };
+        reader.readAsText(file);
+    }
+
+    function updateScript(idx, key, val) { slides[currentSlideIdx].scripts[idx][key] = val; renderScriptsUI(); }
+    function removeScript(idx) { slides[currentSlideIdx].scripts.splice(idx, 1); renderScriptsUI(); }
+    function addScript() { slides[currentSlideIdx].scripts.push({ color: '#000000', type: 'preset', action: 'next', customJs: '' }); renderScriptsUI(); }
+    function addSlide() { slides.push({drawing: null, scripts: []}); currentSlideIdx = slides.length - 1; renderSlide(); }
+    function nextSlide() { if (currentSlideIdx < slides.length - 1) { currentSlideIdx++; renderSlide(); } }
+    function prevSlide() { if (currentSlideIdx > 0) { currentSlideIdx--; renderSlide(); } }
+    function clearSlide() { if(confirm("Clear current slide?")) { ctx.fillStyle="white"; ctx.fillRect(0,0,800,450); slides[currentSlideIdx].drawing = null; } }
+
+    function toggleMode() {
+        mode = mode === 'edit' ? 'play' : 'edit';
+        document.getElementById('modeBtn').innerText = mode === 'edit' ? 'Play Mode' : 'Edit Mode';
+        canvas.style.cursor = mode === 'edit' ? 'crosshair' : 'pointer';
+    }
+
+    function handleCanvasClick(e) {
+        if (mode !== 'play') return;
+        const p = ctx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
+        const hex = "#" + ((p[0] << 16) | (p[1] << 8) | p[2]).toString(16).padStart(6, '0');
+        const script = slides[currentSlideIdx].scripts.find(s => s.color.toLowerCase() === hex.toLowerCase());
+        if (script) {
+            if (script.type === 'preset') {
+                if (script.action === 'next') Navigator.next(); else Navigator.prev();
+            } else {
+                try { new Function('Navigator', script.customJs)(Navigator); } catch(e) { console.error(e); }
+            }
+        }
+    }
+
+    function exportHTML() {
+        const jsonContent = JSON.stringify(slides);
+        const htmlTemplate = `
+        <!DOCTYPE html><html><head><title>Exported App</title><style>body{background:#111;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}canvas{background:white;cursor:pointer;image-rendering:pixelated;}</style></head>
+        <body><canvas id="p" width="800" height="450"></canvas>
+        <script>
+            const slides = ${jsonContent}; let current = 0; const c = document.getElementById('p'); const x = c.getContext('2d');
+            const Navigator = { next:()=> {if(current < slides.length-1){current++;draw();}}, prev:()=>{if(current>0){current--;draw();}}, jump:(idx)=>{current=idx;draw();}};
+            function draw() { const s = slides[current]; x.fillStyle="white"; x.fillRect(0,0,800,450); if(s.drawing){const i=new Image();i.onload=()=>x.drawImage(i,0,0);i.src=s.drawing;}}
+            c.onclick = (e) => {
+                const d = x.getImageData(e.offsetX, e.offsetY, 1, 1).data;
+                const hex = "#" + ((d[0] << 16) | (d[1] << 8) | d[2]).toString(16).padStart(6, '0');
+                const scr = slides[current].scripts.find(s => s.color.toLowerCase() === hex.toLowerCase());
+                if(scr) { if(scr.type==='preset'){if(scr.action==='next')Navigator.next();if(scr.action==='prev')Navigator.prev();}else{new Function('Navigator', scr.customJs)(Navigator);}}
+            };
+            draw();
+        <\/script></body></html>`;
+        const blob = new Blob([htmlTemplate], {type: 'text/html'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'presentation.html'; a.click();
+    }
+    init();
+</script>
+</body>
+</html>
