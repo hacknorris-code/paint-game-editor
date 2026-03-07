@@ -3,136 +3,493 @@
 <head>
     <meta charset="UTF-8">
     <title>Paint game editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta name="description" content="mix of paint, powerpoint and a game engine allowing you to script colors on slides">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1e1e2e; color: #cdd6f4; margin: 0; height: 100vh; overflow: hidden; }
-        #toolbar { background: #11111b; padding: 10px 20px; width: 100%; display: flex; gap: 12px; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100; box-sizing: border-box; flex-wrap: wrap; }
+        @font-face {
+            font-family: 'codeFont';
+            src: url('https://cdn.jsdelivr.net/gh/hlotvonen/FontWithASyntaxHighlighter@main/FontWithASyntaxHighlighterNightOwl-Black.otf') format('opentype');
+        }
 
-        main { display: flex; width: 100%; height: calc(100vh - 80px); justify-content: center; overflow: hidden; }
+        :root { --bg: #11111b; --panel: #181825; --text: #cdd6f4; --accent: #89b4fa; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        #canvas-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; background: #181825; padding: 20px; position: relative; }
-        canvas { background: white; cursor: crosshair; image-rendering: pixelated; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 1px solid #45475a; }
+        .toolbar { background: var(--panel); padding: 8px 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 2px solid #313244; z-index: 10; }
 
-        .sidebar { width: 350px; background: #181825; padding: 20px; border-left: 2px solid #313244; overflow-y: auto; height: 100%; box-sizing: border-box; }
+        main { display: flex; flex: 1; overflow: hidden; }
 
-        .script-row { background: #313244; padding: 12px; margin-bottom: 12px; border-radius: 8px; border-left: 10px solid transparent; display: flex; flex-direction: column; gap: 8px; }
-        .row-header { display: flex; justify-content: space-between; align-items: center; }
-        .row-header input[type="color"] { border: none; width: 28px; height: 28px; cursor: pointer; background: none; padding: 0; }
+        @media (max-width: 1250px) {
+            main {
+                flex-direction: column;
+            }
 
-        button { cursor: pointer; padding: 6px 12px; border: none; border-radius: 4px; background: #45475a; color: white; font-weight: bold; font-size: 13px; }
+            .sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 2px solid #313244;
+                max-height: 40vh;
+                overflow-y: auto;
+            }
+
+            #editor-area {
+                flex: 1;
+                padding: 10px;
+                width: 100%;
+            }
+
+            #canvas-wrapper {
+                width: 100% !important;
+                max-width: 800px;
+                margin: 0 auto;
+            }
+
+            canvas {
+                width: 100% !important;
+                height: auto !important;
+                max-width: 800px;
+                max-height: 70vh;
+            }
+            .toolbar.vert {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                width: 100%;
+                height: auto;
+                padding: 8px;
+            }
+        }
+
+        #editor-area { flex-grow: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #0b0b10; overflow-y: auto; }
+
+        #canvas-wrapper { position: relative; background: #fff; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
+        canvas { display: block; image-rendering: pixelated; touch-action: none; cursor: crosshair; width: 800px; height: 450px; overscroll-behavior: none;}
+        /* Buffer canvas is invisible, used for previews */
+        #bufferCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+        .sidebar { width: 340px; background: var(--panel); padding: 15px; border-left: 2px solid #313244; overflow-y: auto; }
+
+        .tool-group { display: flex; gap: 2px; background: #313244; padding: 4px; border-radius: 6px; }
+        .vert{flex-direction: column;float:left;}
+        button { cursor: pointer; border: none; border-radius: 4px; background: #45475a; color: white; padding: 6px 10px; font-weight: bold; font-size: 11px; }
         button:hover { background: #585b70; }
-        .danger { background: #f38ba8; color: #11111b; }
-        .accent { background: #89b4fa; color: #11111b; }
-        .success { background: #a6e3a1; color: #11111b; }
-        .project-btn { background: #fab387; color: #11111b; }
+        button.active { background: var(--accent); color: #11111b; }
 
-        textarea { width: 100%; height: 60px; font-family: 'Consolas', monospace; font-size: 11px; background: #1e1e2e; color: #a6e3a1; border: 1px solid #45475a; padding: 8px; border-radius: 4px; box-sizing: border-box; }
-        select { padding: 4px; background: #1e1e2e; color: white; border: 1px solid #45475a; border-radius: 4px; }
-        .indicator { font-size: 1em; font-weight: bold; color: #f5e0dc; min-width: 50px; text-align: center; }
-        #fileInput { display: none; }
+        .script-row { background: #313244; padding: 10px; margin-bottom: 10px; border-radius: 8px; border-left: 8px solid transparent; }
+        textarea{width: 100%; height:auto; min-height: 50px; background: #1e1e2e; color: #a6e3a1; border: 1px solid #45475a; margin-top: 5px; font-family: monospace; resize: none; resize: vertical;}
+        #slideNotes { width: 100%; height:auto; min-height: 50px; background: #1e1e2e; color: #a6e3a1; border: 1px solid #45475a; margin-top: 5px; font-family: monospace; resize: none; resize: vertical;}
+        .codefield {
+            font-family: "codeFont", monospace;
+        }
+        .indicator { font-size: 12px; font-weight: bold; color: var(--accent); min-width: 50px; text-align: center; }
+        input[type="color"] { border: none; width: 30px; height: 30px; background: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div id="toolbar">
-    <label for="colorPicker"><small>brush color:</small></label><input type="color" id="colorPicker" value="#ff0000">
-    <label for="sizePicker"><small>brush size:</small></label><input type="range" id="sizePicker" min="1" max="50" value="10" title="Brush Size">
-
-    <div style="border-left: 1px solid #444; height: 20px; margin: 0 5px;"></div>
-
+<div class="toolbar">
+    <button onclick="clearSlide()" class="danger">Clear</button>
     <button onclick="addSlide()">+ New</button>
+    <button onclick="duplicateSlide()">Copy</button>
+    <button onclick="deleteSlide()" style="background:#f38ba8; color:#111">Delete</button>
+    <div style="border-left: 1px solid #444; height: 20px;"></div>
     <button onclick="prevSlide()">Prev</button>
     <span id="slideIndicator" class="indicator">1 / 1</span>
     <button onclick="nextSlide()">Next</button>
-    <button class="danger" onclick="clearSlide()">Clear</button>
+    <div style="border-left: 1px solid #444; height: 20px;"></div>
+    <button onclick="document.getElementById('imgInput').click()">🖼️ Import</button>
+    <input type="file" id="imgInput" hidden accept="image/*" onchange="importImage(event)">
+    <select id="resSelect" onchange="changeResolution()" aria-label="canvas size">
+        <option value="800,450">800x450</option>
+        <option value="400,225">400x225</option>
+        <option value="160,90">160x90</option>
+        <option value="80,45">80x45</option>
+        <option value="32,18">32x18</option>
+    </select>
+    <input type="color" id="bgPicker" value="#fff" aria-label="project background color">
+    <div style="border-left: 1px solid #444; height: 20px;"></div>
 
-    <div style="border-left: 1px solid #444; height: 20px; margin: 0 5px;"></div>
+    <button onclick="saveProject()" style="background:#fab387; color:#111">Save JSON</button>
+    <button onclick="document.getElementById('projInput').click()" style="background:#fab387; color:#111">Load JSON</button>
+    <input type="file" id="projInput" hidden accept=".json" onchange="loadProject(event)">
 
-    <button class="project-btn" onclick="saveProject()">💾 Save Project</button>
-    <button class="project-btn" onclick="document.getElementById('fileInput').click()">📂 Load Project</button>
-    <input type="file" id="fileInput" accept=".json" onchange="loadProject(event)">
+    <button onclick="toggleMode()" id="modeBtn" class="accent">Play Mode</button>
+    <button onclick="exportHTML()" class="success" style="margin-left:auto;">Export HTML</button>
 
-    <button class="accent" onclick="toggleMode()" id="modeBtn">Play Mode</button>
-    <button class="success" onclick="exportHTML()" style="margin-left:auto;">Export HTML</button>
 </div>
 
 <main>
-    <div id="canvas-container">
-        <canvas id="paintCanvas" width="800" height="450"></canvas>
+<div class="toolbar vert">
+    <button onclick="undo()" title="Undo">⟲</button>
+    <div style="border-top: 1px solid #444; height: 20px;"></div>
+    <input type="color" id="colorPicker" value="#ff0000" aria-label="brush color">
+    <div class="tool-group vert">
+        <button onclick="setTool('pen')" id="btn-pen" class="active">Pen</button>
+        <button onclick="setTool('rect')" id="btn-rect">Rect</button>
+        <button onclick="setTool('circle')" id="btn-circle">Circ</button>
+        <button onclick="setTool('line')" id="btn-line">Line</button>
+        <button onclick="setTool('fill')" id="btn-fill">Fill</button>
+    </div>
+    <input aria-label="brush size" type="range" id="brushSize" style="writing-mode: vertical-lr;" min="1" max="10">
+</div>
+    <div id="editor-area">
+        <div id="canvas-wrapper">
+            <canvas id="paintCanvas"></canvas>
+            <canvas id="bufferCanvas"></canvas>
+        </div>
+        <div style="width: 800px; margin-top: 15px;">
+            <label style="font-size:12px;">Slide Notes / Meta:</label>
+            <div contenteditable id="slideNotes" oninput="slides[currentSlideIdx].notes = this.innerHTML"></div>
+        </div>
     </div>
 
     <div class="sidebar">
-        <h3 style="margin-top:0;">Interaction Rules</h3>
-        <button onclick="scanForColors()" style="width:100%; background:#f9e2af; color:#111; margin-bottom:15px; font-weight: bold;">🔍 Detect Drawing Colors</button>
+        <h4 style="margin:0 0 10px 0">Scripts</h4>
+        <button onclick="scanForColors()" style="width:100%; background:#89dceb; color:#111; margin-bottom:15px;">Scan for Triggers</button>
         <div id="scriptList"></div>
-        <button onclick="addScript()" style="width:100%; background:#b4befe; color:#111;">+ Add Manual Link</button>
     </div>
 </main>
 
 <script>
-    let slides = [{drawing: null, scripts: []}];
+    let slides = [{drawing: null, scripts: [], notes: "", history: []}];
     let currentSlideIdx = 0;
     let isDrawing = false;
+    let tool = 'pen';
     let mode = 'edit';
+    let startX, startY;
+    let vWidth = 800, vHeight = 450;
 
     const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const colorPicker = document.getElementById('colorPicker');
-    const sizePicker = document.getElementById('sizePicker');
-
-    const Navigator = {
-        next: () => nextSlide(),
-        prev: () => prevSlide(),
-        jump: (idx) => { currentSlideIdx = idx; renderSlide(); }
-    };
-
+    const buffer = document.getElementById('bufferCanvas');
+    const bctx = buffer.getContext('2d');
+    ctx.antiAlias = true;
+    bctx.antiAlias = true;
+    ctx.imageSmoothingEnabled = false;
+    bctx.imageSmoothingEnabled = false;
     function init() {
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        window.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('click', handleCanvasClick);
+        document.getElementById('bgPicker').oninput = () => renderSlide();
         renderSlide();
+        changeResolution();
+        canvas.addEventListener('mousedown', start);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', stop);
+
+        // Touch
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e.touches[0]); }, {passive:false});
+        window.addEventListener('touchmove', (e) => { if(isDrawing) { e.preventDefault(); move(e.touches[0]); }}, {passive:false});
+        window.addEventListener('touchend', stop);
+
+        renderSlide();
+    }
+
+    function changeResolution() {
+        const [w, h] = document.getElementById('resSelect').value.split(',').map(Number);
+        vWidth = w; vHeight = h;
+        canvas.width = buffer.width = w;
+        canvas.height = buffer.height = h;
+        renderSlide();
+    }
+
+    function setTool(t) {
+        tool = t;
+        document.querySelectorAll('.tool-group button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + t)?.classList.add('active');
+    }
+
+    function pushHistory() {
+        if (!slides[currentSlideIdx].history) slides[currentSlideIdx].history = [];
+        slides[currentSlideIdx].history.push(canvas.toDataURL());
+        if (slides[currentSlideIdx].history.length > 20) slides[currentSlideIdx].history.shift();
+    }
+
+    function undo() {
+        let hist = slides[currentSlideIdx].history;
+        if (hist && hist.length > 0) {
+            slides[currentSlideIdx].drawing = hist.pop();
+            renderSlide();
+        }
     }
 
     function renderSlide() {
         const slide = slides[currentSlideIdx];
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('slideIndicator').innerText = `${currentSlideIdx + 1} / ${slides.length}`;
+        document.getElementById('slideNotes').innerHTML = slides[currentSlideIdx].notes || "";
+        requestAnimationFrame(() => {
+        ctx.clearRect(0, 0, vWidth, vHeight);
+        ctx.fillStyle = bgPicker.value || "white" ;
+        ctx.fillRect(0, 0, vWidth, vHeight);
         if (slide.drawing) {
             const img = new Image();
             img.onload = () => ctx.drawImage(img, 0, 0);
             img.src = slide.drawing;
+            if (img.complete && img.naturalWidth > 0) ctx.drawImage(img, 0, 0);
         }
-        document.getElementById('slideIndicator').innerText = `${currentSlideIdx + 1} / ${slides.length}`;
         renderScriptsUI();
+        });
     }
 
-    function draw(e) {
+    function getCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return [Math.floor((e.clientX - rect.left) * scaleX), Math.floor((e.clientY - rect.top) * scaleY)];
+    }
+
+    function start(e) {
+        if (mode === 'play') { handlePlayClick(e); return; }
+        pushHistory();
+        isDrawing = true;
+        [startX, startY] = getCoords(e);
+        if (tool === 'fill') floodFill(startX, startY, document.getElementById('colorPicker').value);
+    }
+
+    function move(e) {
         if (!isDrawing || mode !== 'edit') return;
-        const x = Math.floor(e.offsetX);
-        const y = Math.floor(e.offsetY);
-        const size = parseInt(sizePicker.value);
-        ctx.fillStyle = colorPicker.value;
-        ctx.fillRect(x - Math.floor(size/2), y - Math.floor(size/2), size, size);
+        const [x, y] = getCoords(e);
+        const color = document.getElementById('colorPicker').value;
+        const size = parseInt(document.getElementById('brushSize').value);
+
+        if (tool === 'pen') {
+            ctx.fillStyle = color;
+            ctx.fillRect(x-Math.floor(size / 2), y-Math.floor(size / 2), size, size);
+        } else {
+            // Draw to buffer for preview (no flashing)
+            bctx.clearRect(0,0,vWidth,vHeight);
+            bctx.fillStyle = color;
+            bctx.strokeStyle = color;
+            if (tool === 'circle') drawPixelCircle(startX,startY,x,y);
+            bctx.lineWidth = size;
+            const offset = (size % 2 !== 0) ? 0.5 : 0;
+            if (tool === 'rect') bctx.strokeRect(Math.floor(startX) + offset, Math.floor(startY) + offset, Math.floor(x - startX), Math.floor(y - startY));
+            if (tool === 'line') drawLine(startX,startY,x,y);
+        }
+    }
+    function drawPixelCircle(xc, yc, x2, y2) {
+        let r = Math.floor(Math.sqrt(Math.pow(x2 - xc, 2) + Math.pow(y2 - yc, 2)));
+        const size = parseInt(document.getElementById('brushSize').value);
+
+        // We use a half-pixel shift ONLY if the brush size is odd to keep it centered
+        const shift = (size % 2 !== 0) ? 0 : 0.5;
+
+        const plot = (x, y) => {
+            // Draw the brush shape (a square) centered at the calculated point
+            // Math.floor(x - size/2) ensures the thickness grows evenly from the path
+            bctx.fillRect(
+                Math.floor(x - size / 2 + shift),
+                Math.floor(y - size / 2 + shift),
+                size, size
+            );
+        };
+
+        let x = 0;
+        let y = r;
+        let d = 3 - 2 * r;
+
+        const draw8 = (xc, yc, x, y) => {
+            plot(xc + x, yc + y); plot(xc - x, yc + y);
+            plot(xc + x, yc - y); plot(xc - x, yc - y);
+            plot(xc + y, yc + x); plot(xc - y, yc + x);
+            plot(xc + y, yc - x); plot(xc - y, yc - x);
+        };
+
+        draw8(xc, yc, x, y);
+        while (y >= x) {
+            x++;
+            if (d > 0) {
+                y--;
+                d = d + 4 * (x - y) + 10;
+            } else {
+                d = d + 4 * x + 6;
+            }
+            draw8(xc, yc, x, y);
+        }
+    }
+    function drawLine(x1, y1, x2, y2) {
+        // Round to nearest integer, just to be safe
+        x1 = Math.round(x1);
+        y1 = Math.round(y1);
+        x2 = Math.round(x2);
+        y2 = Math.round(y2);
+
+        // Bresenham's line algorithm
+        let dx = Math.abs(x2 - x1);
+        let dy = Math.abs(y2 - y1);
+        let sx = (x1 < x2) ? 1 : -1;
+        let sy = (y1 < y2) ? 1 : -1;
+        let err = dx - dy;
+        const size = parseInt(document.getElementById('brushSize').value);
+        const offset = Math.floor(size / 2);
+
+        while (true) {
+            bctx.fillRect(x1 - offset, y1 - offset, size, size);
+
+            if (x1 === x2 && y1 === y2) break;
+
+            let e2 = err * 2;
+
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+        }
+    }
+    function stop() {
+        if (isDrawing) {
+            isDrawing = false;
+            // Bake buffer into main canvas
+            ctx.drawImage(buffer, 0, 0);
+            bctx.clearRect(0,0,vWidth,vHeight);
+            slides[currentSlideIdx].drawing = canvas.toDataURL();
+        }
+    }
+    function palettize(numColors = 16) {
+        pushHistory();
+        const imgData = ctx.getImageData(0, 0, vWidth, vHeight);
+        const data = imgData.data;
+
+        // Count frequencies of colors
+        const counts = {};
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i+3] < 128) continue; // Skip transparent
+            // Use bit-shifting to slightly group similar colors (optional)
+            const rgb = `${data[i]},${data[i+1]},${data[i+2]}`;
+            counts[rgb] = (counts[rgb] || 0) + 1;
+        }
+
+        // Sort colors by popularity
+        let sortedColors = Object.keys(counts)
+            .sort((a, b) => counts[b] - counts[a])
+            .map(c => c.split(',').map(Number));
+
+        // Filter to find 'distinct' top colors
+        const palette = [];
+        for (let color of sortedColors) {
+            if (palette.length >= numColors) break;
+            // Only add if it's not too similar to a color already in the palette
+            const isUnique = palette.every(p => {
+                const diff = Math.sqrt((p[0]-color[0])**2 + (p[1]-color[1])**2 + (p[2]-color[2])**2);
+                return diff > 30; // Threshold: higher = more distinct colors
+            });
+            if (isUnique) palette.push(color);
+        }
+
+        // Map the image to this new custom palette
+        for (let i = 0; i < data.length; i += 4) {
+            let r = data[i], g = data[i+1], b = data[i+2];
+            let closest = palette[0] || [255,255,255];
+            let minDistance = Infinity;
+
+            for (const p of palette) {
+                const dist = (r-p[0])**2 + (g-p[1])**2 + (b-p[2])**2;
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closest = p;
+                }
+            }
+            data[i] = closest[0]; data[i+1] = closest[1]; data[i+2] = closest[2];
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        slides[currentSlideIdx].drawing = canvas.toDataURL();
+    }
+    function deleteSlide() {
+    // Prevent deleting if only one slide remains
+        if (slides.length <= 1) {
+            alert("Cannot delete the only slide!");
+            return;
+        }
+
+        if (confirm("Are you sure you want to delete this slide?")) {
+            // Remove the slide at the current index
+            slides.splice(currentSlideIdx, 1);
+
+            // If we were on the last slide, move the index back by one
+            if (currentSlideIdx >= slides.length) {
+                currentSlideIdx = slides.length - 1;
+            }
+
+            // Refresh the canvas and UI
+            renderSlide();
+        }
     }
 
-    function startDrawing(e) { if (mode === 'edit') { isDrawing = true; draw(e); } }
-    function stopDrawing() { if (isDrawing) { isDrawing = false; slides[currentSlideIdx].drawing = canvas.toDataURL(); } }
+    function importImage(e) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                pushHistory();
+                // Optional: Clear slide first or just overlay
+                ctx.drawImage(img, 0, 0, vWidth, vHeight);
+                // Bake to current slide
+                slides[currentSlideIdx].drawing = canvas.toDataURL();
+                palettize(16);
+                renderSlide();
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+
+    }
+
+    // PROJECT MGMT
+    function saveProject() {
+        const blob = new Blob([JSON.stringify(slides)], {type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'project.json'; a.click();
+    }
+
+    function loadProject(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            slides = JSON.parse(ev.target.result);
+            currentSlideIdx = 0; renderSlide();
+        };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    function floodFill(x, y, fillHex) {
+        const target = ctx.getImageData(x, y, 1, 1).data;
+        const fill = hexToRgb(fillHex);
+        if (target[0]===fill.r && target[1]===fill.g && target[2]===fill.b) return;
+
+        const img = ctx.getImageData(0,0,vWidth,vHeight);
+        const stack = [[x,y]];
+        while(stack.length) {
+            const [cx, cy] = stack.pop();
+            const i = (cy * vWidth + cx) * 4;
+            if (img.data[i]===target[0] && img.data[i+1]===target[1] && img.data[i+2]===target[2]) {
+                img.data[i]=fill.r; img.data[i+1]=fill.g; img.data[i+2]=fill.b; img.data[i+3]=255;
+                if(cx>0) stack.push([cx-1, cy]);
+                if(cx<vWidth-1) stack.push([cx+1, cy]);
+                if(cy>0) stack.push([cx, cy-1]);
+                if(cy<vHeight-1) stack.push([cx, cy+1]);
+            }
+        }
+        ctx.putImageData(img,0,0);
+        slides[currentSlideIdx].drawing = canvas.toDataURL();
+    }
+
+    function hexToRgb(hex) {
+        const c = parseInt(hex.substring(1), 16);
+        return { r: (c >> 16) & 255, g: (c >> 8) & 255, b: c & 255 };
+    }
 
     function scanForColors() {
-        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const data = ctx.getImageData(0,0,vWidth,vHeight).data;
         const colors = new Set();
-        for (let i = 0; i < data.length; i += 4) {
-            if (data[i] === 255 && data[i+1] === 255 && data[i+2] === 255) continue;
-            const hex = "#" + ((data[i] << 16) | (data[i+1] << 8) | data[i+2]).toString(16).padStart(6, '0');
-            colors.add(hex);
+        for(let i=0; i<data.length; i+=4) {
+            if(data[i]===255 && data[i+1]===255 && data[i+2]===255) continue;
+            colors.add("#" + ((data[i]<<16)|(data[i+1]<<8)|data[i+2]).toString(16).padStart(6,'0'));
         }
         colors.forEach(c => {
-            if (!slides[currentSlideIdx].scripts.some(s => s.color.toLowerCase() === c.toLowerCase())) {
-                slides[currentSlideIdx].scripts.push({ color: c, type: 'preset', action: 'next', customJs: '' });
-            }
+            if(!slides[currentSlideIdx].scripts.some(s=>s.color === c))
+                slides[currentSlideIdx].scripts.push({color:c, action:'next', type:'preset', customJs:''});
         });
         renderScriptsUI();
     }
@@ -145,99 +502,129 @@
             row.className = 'script-row';
             row.style.borderLeftColor = s.color;
             row.innerHTML = `
-                <div class="row-header">
-                    <input type="color" value="${s.color}" onchange="updateScript(${i}, 'color', this.value)">
-                    <code style="font-size:12px; font-weight:bold;">${s.color.toUpperCase()}</code>
-                    <button class="danger" onclick="removeScript(${i})" style="padding:2px 8px">×</button>
+                <div style="display:flex; justify-content:space-between">
+                    <b>${s.color.toUpperCase()}</b>
+                    <button onclick="slides[currentSlideIdx].scripts.splice(${i},1);renderScriptsUI();">×</button>
                 </div>
-                <select onchange="updateScript(${i}, 'type', this.value)">
-                    <option value="preset" ${s.type === 'preset' ? 'selected' : ''}>Action</option>
-                    <option value="js" ${s.type === 'js' ? 'selected' : ''}>JS Code</option>
+                <select onchange="slides[currentSlideIdx].scripts[${i}].type=this.value;renderScriptsUI()">
+                    <option value="preset" ${s.type==='preset'?'selected':''}>Jump</option>
+                    <option value="js" ${s.type==='js'?'selected':''}>JS Code</option>
                 </select>
-                ${s.type === 'preset' ? `
-                    <select onchange="updateScript(${i}, 'action', this.value)">
-                        <option value="next" ${s.action === 'next' ? 'selected' : ''}>Next Slide</option>
-                        <option value="prev" ${s.action === 'prev' ? 'selected' : ''}>Prev Slide</option>
-                    </select>
-                ` : `
-                    <textarea spellcheck="false" onchange="updateScript(${i}, 'customJs', this.value)">${s.customJs}</textarea>
-                `}`;
+                ${s.type==='preset' ? `
+                    <select onchange="slides[currentSlideIdx].scripts[${i}].action=this.value">
+                        <option value="next" ${s.action==='next'?'selected':''}>Next</option>
+                        <option value="prev" ${s.action==='prev'?'selected':''}>Prev</option>
+                    </select>` : `
+                    <textarea class="codefield" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="slides[currentSlideIdx].scripts[${i}].customJs=this.value">${s.customJs}</textarea>`}`;
             list.appendChild(row);
         });
     }
 
-    // PROJECT IO
-    function saveProject() {
-        const blob = new Blob([JSON.stringify(slides)], {type: 'application/json'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'my-paint-project.json';
-        a.click();
-    }
-
-    function loadProject(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                slides = JSON.parse(e.target.result);
-                currentSlideIdx = 0;
-                renderSlide();
-                alert("Project loaded successfully!");
-            } catch (err) { alert("Error loading project file."); }
-        };
-        reader.readAsText(file);
-    }
-
-    function updateScript(idx, key, val) { slides[currentSlideIdx].scripts[idx][key] = val; renderScriptsUI(); }
-    function removeScript(idx) { slides[currentSlideIdx].scripts.splice(idx, 1); renderScriptsUI(); }
-    function addScript() { slides[currentSlideIdx].scripts.push({ color: '#000000', type: 'preset', action: 'next', customJs: '' }); renderScriptsUI(); }
-    function addSlide() { slides.push({drawing: null, scripts: []}); currentSlideIdx = slides.length - 1; renderSlide(); }
-    function nextSlide() { if (currentSlideIdx < slides.length - 1) { currentSlideIdx++; renderSlide(); } }
-    function prevSlide() { if (currentSlideIdx > 0) { currentSlideIdx--; renderSlide(); } }
-    function clearSlide() { if(confirm("Clear current slide?")) { ctx.fillStyle="white"; ctx.fillRect(0,0,800,450); slides[currentSlideIdx].drawing = null; } }
-
-    function toggleMode() {
-        mode = mode === 'edit' ? 'play' : 'edit';
-        document.getElementById('modeBtn').innerText = mode === 'edit' ? 'Play Mode' : 'Edit Mode';
-        canvas.style.cursor = mode === 'edit' ? 'crosshair' : 'pointer';
-    }
-
-    function handleCanvasClick(e) {
-        if (mode !== 'play') return;
-        const p = ctx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
-        const hex = "#" + ((p[0] << 16) | (p[1] << 8) | p[2]).toString(16).padStart(6, '0');
-        const script = slides[currentSlideIdx].scripts.find(s => s.color.toLowerCase() === hex.toLowerCase());
-        if (script) {
-            if (script.type === 'preset') {
-                if (script.action === 'next') Navigator.next(); else Navigator.prev();
-            } else {
-                try { new Function('Navigator', script.customJs)(Navigator); } catch(e) { console.error(e); }
+    function handlePlayClick(e) {
+        const [x,y] = getCoords(e);
+        const p = ctx.getImageData(x,y,1,1).data;
+        const hex = "#" + ((p[0]<<16)|(p[1]<<8)|p[2]).toString(16).padStart(6,'0');
+        const script = slides[currentSlideIdx].scripts.find(s=>s.color.toLowerCase() === hex.toLowerCase());
+        if(script) {
+            if(script.type==='preset') {
+                if(script.action==='next') nextSlide();
+                else prevSlide();
+            }
+            else { new Function('Nav', script.customJs)({
+                next:nextSlide,
+                prev:prevSlide,
+                jump:(i)=>{currentSlideIdx=i-1;renderSlide();},
+                setNotes: (txt) => { slides[currentSlideIdx].notes = txt; renderSlide();},
+                movePart: (sX, sY, eX, eY, dX, dY) => {
+                        const w = Math.abs(eX - sX);
+                        const h = Math.abs(eY - sY);
+                        // Grab the pixels from the source area
+                        const part = ctx.getImageData(sX, sY, w, h);
+                        // Clear the old area (optional - remove if you want to clone instead of move)
+                        ctx.fillStyle = bgPicker.value || "white" ;
+                        ctx.fillRect(sX, sY, w, h);
+                        // Place the pixels at the destination
+                        ctx.putImageData(part, dX, dY);
+                        // Save the change to the slide data
+                        slides[currentSlideIdx].drawing = canvas.toDataURL();
+                    },
+                swapPart: (sX, sY, eX, eY, dX, dY) => {
+                    const w = Math.abs(eX - sX);
+                    const h = Math.abs(eY - sY);
+                    if (w <= 0 || h <= 0) return;
+                    const regionA = ctx.getImageData(sX, sY, w, h);
+                    const regionB = ctx.getImageData(dX, dY, w, h);
+                    ctx.putImageData(regionB, sX, sY);
+                    ctx.putImageData(regionA, dX, dY);
+                    slides[currentSlideIdx].drawing = canvas.toDataURL();
+                    }
+                });
             }
         }
     }
 
+
+    function addSlide() { slides.push({drawing:null, scripts:[], notes:"", history:[]}); currentSlideIdx=slides.length-1; renderSlide(); }
+    function duplicateSlide() { const s = JSON.parse(JSON.stringify(slides[currentSlideIdx])); slides.splice(currentSlideIdx+1,0,s); currentSlideIdx++; renderSlide(); }
+    function nextSlide() { if(currentSlideIdx < slides.length-1) { currentSlideIdx++; renderSlide(); }}
+    function prevSlide() { if(currentSlideIdx > 0) { currentSlideIdx--; renderSlide(); }}
+    function clearSlide() { pushHistory(); ctx.fillStyle = bgPicker.value || "white" ; ctx.fillRect(0,0,vWidth,vHeight); slides[currentSlideIdx].drawing=null; }
+    function toggleMode() { mode = mode==='edit'?'play':'edit'; document.getElementById('modeBtn').innerText = mode==='edit'?'Play Mode':'Edit Mode'; }
+
     function exportHTML() {
-        const jsonContent = JSON.stringify(slides);
-        const htmlTemplate = `
-        <!DOCTYPE html><html><head><title>Exported App</title><style>body{background:#111;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}canvas{background:white;cursor:pointer;image-rendering:pixelated;}</style></head>
-        <body><canvas id="p" width="800" height="450"></canvas>
+        const data = JSON.stringify(slides);
+        const html = `<!DOCTYPE html><html><body style="background:#000;display:flex;justify-content:center;align-items:center;flex-direction:column;height:100vh;margin:0">
+        <canvas id="c" width="${vWidth}" height="${vHeight}" style="width:800px; height:450px; image-rendering:pixelated; background:#fff; cursor:pointer;"></canvas>
+        <div id="slideNotes" style="color:#ffffff"></div>
         <script>
-            const slides = ${jsonContent}; let current = 0; const c = document.getElementById('p'); const x = c.getContext('2d');
-            const Navigator = { next:()=> {if(current < slides.length-1){current++;draw();}}, prev:()=>{if(current>0){current--;draw();}}, jump:(idx)=>{current=idx;draw();}};
-            function draw() { const s = slides[current]; x.fillStyle="white"; x.fillRect(0,0,800,450); if(s.drawing){const i=new Image();i.onload=()=>x.drawImage(i,0,0);i.src=s.drawing;}}
-            c.onclick = (e) => {
-                const d = x.getImageData(e.offsetX, e.offsetY, 1, 1).data;
-                const hex = "#" + ((d[0] << 16) | (d[1] << 8) | d[2]).toString(16).padStart(6, '0');
-                const scr = slides[current].scripts.find(s => s.color.toLowerCase() === hex.toLowerCase());
-                if(scr) { if(scr.type==='preset'){if(scr.action==='next')Navigator.next();if(scr.action==='prev')Navigator.prev();}else{new Function('Navigator', scr.customJs)(Navigator);}}
+            backgroundCol = "${toString(bgPicker.value) || "white"}";
+            const s = ${data}; let cur = 0; const canvas = document.getElementById('c'); const ctx = canvas.getContext('2d');
+            const draw = () => {
+                ctx.fillStyle=backgroundCol;
+                ctx.fillRect(0,0,${vWidth},${vHeight});
+                if(s[cur].drawing){
+                    const i=new Image();
+                    i.onload=()=>ctx.drawImage(i,0,0);
+                    i.src=s[cur].drawing;
+                }
+                slideNotes.innerHTML = s[cur].notes || "";
             };
-            draw();
+            canvas.onclick = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) * (${vWidth}/rect.width));
+                const y = Math.floor((e.clientY - rect.top) * (${vHeight}/rect.height));
+                const p = ctx.getImageData(x,y,1,1).data;
+                const hex = "#" + ((p[0]<<16)|(p[1]<<8)|p[2]).toString(16).padStart(6,'0');
+                const scr = s[cur].scripts.find(sc=>sc.color.toLowerCase() === hex.toLowerCase());
+                if(scr){
+                    if(scr.type==='preset'){
+                        if(scr.action==='next' && cur<s.length-1)cur++;
+                        else if(cur>0)cur--;
+                    }else{
+                        new Function('Nav', scr.customJs)({
+                            next:()=>cur++,
+                            prev: () => { if(cur > 0) cur--; draw(); },
+                            jump:(i)=>cur=i-1,
+                            setNotes: (txt) => { s[cur].notes = txt; draw();},
+                            movePart: (sX, sY, eX, eY, dX, dY) => {
+                                const w = Math.abs(eX - sX);
+                                const h = Math.abs(eY - sY);
+                                const part = ctx.getImageData(sX, sY, w, h);
+                                ctx.fillStyle = backgroundCol ;
+                                ctx.fillRect(sX, sY, w, h);
+                                ctx.putImageData(part, dX, dY);
+                                slides[currentSlideIdx].drawing = canvas.toDataURL();
+                            }
+                        });
+                    }
+                    draw();
+                }
+            }; draw();
         <\/script></body></html>`;
-        const blob = new Blob([htmlTemplate], {type: 'text/html'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'presentation.html'; a.click();
+        const blob = new Blob([html], {type: 'text/html'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='game.html'; a.click();
     }
+
     init();
 </script>
 </body>
