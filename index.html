@@ -522,7 +522,7 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
             row.style.borderLeftColor = s.color;
             row.innerHTML = `
                 <div style="display:flex; justify-content:space-between">
-                    <b>${s.color.toUpperCase()}</b>
+                    <b onclick="colorPicker.value='${s.color.toUpperCase()}'">${s.color.toUpperCase()}</b>
                     <button onclick="slides[currentSlideIdx].scripts.splice(${i},1);renderScriptsUI();">×</button>
                 </div>
                 <select onchange="slides[currentSlideIdx].scripts[${i}].type=this.value;renderScriptsUI()">
@@ -554,6 +554,7 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
                 prev:prevSlide,
                 jump:(i)=>{currentSlideIdx=i-1;renderSlide();},
                 setNotes: (txt) => { slides[currentSlideIdx].notes = txt; renderSlide();},
+                getNotes: (txt) => {return slides[currentSlideIdx].notes},
                 movePart: (sX, sY, eX, eY, dX, dY) => {
                         const w = Math.abs(eX - sX);
                         const h = Math.abs(eY - sY);
@@ -625,6 +626,7 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
                             prev: () => { if(cur > 0) cur--; draw(); },
                             jump:(i)=>cur=i-1,
                             setNotes: (txt) => { s[cur].notes = txt; draw();},
+                            getNotes: (txt) => {return s[cur].notes},
                             movePart: (sX, sY, eX, eY, dX, dY) => {
                                 const w = Math.abs(eX - sX);
                                 const h = Math.abs(eY - sY);
@@ -633,7 +635,17 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
                                 ctx.fillRect(sX, sY, w, h);
                                 ctx.putImageData(part, dX, dY);
                                 slides[currentSlideIdx].drawing = canvas.toDataURL();
-                            }
+                            },
+                            swapPart: (sX, sY, eX, eY, dX, dY) => {
+                                 const w = Math.abs(eX - sX);
+                                 const h = Math.abs(eY - sY);
+                                 if (w <= 0 || h <= 0) return;
+                                 const regionA = ctx.getImageData(sX, sY, w, h);
+                                 const regionB = ctx.getImageData(dX, dY, w, h);
+                                 ctx.putImageData(regionB, sX, sY);
+                                 ctx.putImageData(regionA, dX, dY);
+                                 slides[currentSlideIdx].drawing = canvas.toDataURL();
+                             }
                         });
                     }
                     draw();
