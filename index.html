@@ -111,8 +111,8 @@
     <button onclick="saveProject()" style="background:#fab387; color:#111">Save JSON</button>
     <button onclick="document.getElementById('projInput').click()" style="background:#fab387; color:#111">Load JSON</button>
     <input type="file" id="projInput" hidden accept=".json" onchange="loadProject(event)">
-
-    <button onclick="toggleMode()" id="modeBtn" class="accent">Play Mode</button>
+ 
+   <button onclick="toggleMode()" id="modeBtn" class="accent">Play Mode</button>
     <button onclick="exportHTML()" class="success" style="margin-left:auto;">Export HTML</button>
 
 </div>
@@ -147,6 +147,25 @@
         <button onclick="scanForColors()" style="width:100%; background:#89dceb; color:#111; margin-bottom:15px;">Scan for Triggers</button>
         <div id="scriptList"></div>
     </div>
+    <dialog closed id="devHelp">
+        <button onclick="devHelp.close()" style="float:right">X</button>
+        <p>
+this editor is capable of running javascript on selected colors. 
+it is default browser javascript with additional apis specifical to this editor. 
+apis explained below: 
+        </p>
+        <pre>
+Nav.next; // go to next slide
+Nav.prev; // go to previous slide
+Nav.jump(1); // go to specified slide by number
+
+Nav.setNotes("text");    //  set slide notes to value
+
+Nav.movePart(0,0,50,50,100,100); // move part of image - in this case a selection from topleft to 100,100 
+Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a selection from topleft (0,0-50,50) and 100,100 - 150,150
+        </pre>
+        <p>additionally - <a href="https://github.com/hacknorris-code/paint-game-editor">here source code of engine</a></p>
+    </dialog>
 </main>
 
 <script>
@@ -515,7 +534,7 @@
                         <option value="next" ${s.action==='next'?'selected':''}>Next</option>
                         <option value="prev" ${s.action==='prev'?'selected':''}>Prev</option>
                     </select>` : `
-                    <textarea class="codefield" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="slides[currentSlideIdx].scripts[${i}].customJs=this.value">${s.customJs}</textarea>`}`;
+                    <button onclick="devHelp.showModal()">?</button><textarea class="codefield" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="slides[currentSlideIdx].scripts[${i}].customJs=this.value">${s.customJs}</textarea>`}`;
             list.appendChild(row);
         });
     }
@@ -629,3 +648,4 @@
 </script>
 </body>
 </html>
+
