@@ -96,7 +96,7 @@
     <span id="slideIndicator" class="indicator">1 / 1</span>
     <button onclick="nextSlide()">Next</button>
     <div style="border-left: 1px solid #444; height: 20px;"></div>
-    <button onclick="document.getElementById('imgInput').click()">🖼️ Import</button>
+    <button onclick="document.getElementById('imgInput').click()">Image Import</button>
     <input type="file" id="imgInput" hidden accept="image/*" onchange="importImage(event)">
     <select id="resSelect" onchange="changeResolution()" aria-label="canvas size">
         <option value="800,450">800x450</option>
@@ -107,6 +107,7 @@
     </select>
     <input type="color" id="bgPicker" value="#fff" aria-label="project background color">
     <div style="border-left: 1px solid #444; height: 20px;"></div>
+    <button onclick="saveImage()">Save Image</button>
 
     <button onclick="saveProject()" style="background:#fab387; color:#111">Save JSON</button>
     <button onclick="document.getElementById('projInput').click()" style="background:#fab387; color:#111">Load JSON</button>
@@ -119,6 +120,7 @@
 
 <main>
 <div class="toolbar vert">
+    <div id="position"></div>
     <button onclick="undo()" title="Undo">⟲</button>
     <div style="border-top: 1px solid #444; height: 20px;"></div>
     <input type="color" id="colorPicker" value="#ff0000" aria-label="brush color">
@@ -263,8 +265,9 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
     }
 
     function move(e) {
-        if (!isDrawing || mode !== 'edit') return;
         const [x, y] = getCoords(e);
+        position.innerHTML = "<pre>x: " + x.toString().padStart(4," ")+"<br>y:"+y.toString().padStart(4," ")+ "</pre>";
+        if (!isDrawing || mode !== 'edit') return;
         const color = document.getElementById('colorPicker').value;
         const size = parseInt(document.getElementById('brushSize').value);
 
@@ -461,6 +464,11 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
         const blob = new Blob([JSON.stringify(slides)], {type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = 'project.json'; a.click();
+    }
+    function saveImage() {
+        const blob = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+        const a = document.createElement('a'); a.href = blob;
+        a.download = 'slide_'+currentSlideIdx+'_image.png' ; a.click();
     }
 
     function loadProject(e) {
