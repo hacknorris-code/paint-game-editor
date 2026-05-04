@@ -12,11 +12,33 @@
         }
 
         :root { --bg: #11111b; --panel: #181825; --text: #cdd6f4; --accent: #89b4fa; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-        .toolbar { background: var(--panel); padding: 8px 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 2px solid #313244; z-index: 10; }
+        .toolbar {
+            background: var(--panel);
+            padding: 8px 15px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #313244;
+            z-index: 10;
+        }
 
         main { display: flex; flex: 1; overflow: hidden; }
+
+        #brushSize{
+          writing-mode: vertical-lr;
+        }
 
         @media (max-width: 1250px) {
             main {
@@ -34,20 +56,13 @@
             #editor-area {
                 flex: 1;
                 padding: 10px;
-                width: 100%;
             }
 
             #canvas-wrapper {
                 width: 100% !important;
+                height: auto;
                 max-width: 800px;
                 margin: 0 auto;
-            }
-
-            canvas {
-                width: 100% !important;
-                height: auto !important;
-                max-width: 800px;
-                max-height: 70vh;
             }
             .toolbar.vert {
                 flex-direction: row;
@@ -57,12 +72,49 @@
                 height: auto;
                 padding: 8px;
             }
+            .tool-group.vert {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                width: 100%;
+                height: auto;
+                padding: 8px;
+            }
+            #brushSize{
+                writing-mode: initial;
+            }
         }
 
-        #editor-area { flex-grow: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #0b0b10; overflow-y: auto; }
+        .disabled{
+            display: none;
+        }
 
-        #canvas-wrapper { position: relative; background: #fff; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
-        canvas { display: block; image-rendering: pixelated; touch-action: none; cursor: crosshair; width: 800px; height: 450px; overscroll-behavior: none;}
+        #editor-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: #0b0b10;
+            overflow-y: auto;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            background: #fff;
+            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+        }
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+            image-rendering: pixelated;
+            display: block;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            overscroll-behavior: none;
+        }
         /* Buffer canvas is invisible, used for previews */
         #bufferCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
 
@@ -70,18 +122,70 @@
 
         .tool-group { display: flex; gap: 2px; background: #313244; padding: 4px; border-radius: 6px; }
         .vert{flex-direction: column;float:left;}
-        button { cursor: pointer; border: none; border-radius: 4px; background: #45475a; color: white; padding: 6px 10px; font-weight: bold; font-size: 11px; }
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background: #45475a;
+            color: white;
+            padding: 6px 10px;
+            font-weight: bold;
+            font-size: 11px;
+        }
         button:hover { background: #585b70; }
         button.active { background: var(--accent); color: #11111b; }
 
-        .script-row { background: #313244; padding: 10px; margin-bottom: 10px; border-radius: 8px; border-left: 8px solid transparent; }
-        textarea{width: 100%; height:auto; min-height: 50px; background: #1e1e2e; color: #a6e3a1; border: 1px solid #45475a; margin-top: 5px; font-family: monospace; resize: none; resize: vertical;}
-        #slideNotes { width: 100%; height:auto; min-height: 50px; background: #1e1e2e; color: #a6e3a1; border: 1px solid #45475a; margin-top: 5px; font-family: monospace; resize: none; resize: vertical;}
+        .script-row {
+            background: #313244;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 8px solid transparent;
+        }
+        textarea{
+            width: 100%;
+            height:auto;
+            min-height: 50px;
+            background: #1e1e2e;
+            color: #a6e3a1;
+            border: 1px solid #45475a;
+            margin-top: 5px;
+            font-family: monospace;
+            resize: none;
+            resize: vertical;
+        }
+        #slideNotes {
+            width: 100%;
+            height:auto;
+            min-height: 50px;
+            background: #1e1e2e;
+            color: #a6e3a1;
+            border: 1px solid #45475a;
+            margin-top: 5px;
+            font-family: monospace;
+            resize: none;
+            resize: vertical;
+        }
         .codefield {
             font-family: "codeFont", monospace;
         }
-        .indicator { font-size: 12px; font-weight: bold; color: var(--accent); min-width: 50px; text-align: center; }
-        input[type="color"] { border: none; width: 30px; height: 30px; background: none; cursor: pointer; }
+        .indicator {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--accent);
+            min-width: 50px;
+            text-align: center;
+        }
+        .divider{
+            border-left: 1px solid #444; height: 20px;
+        }
+        input[type="color"] {
+            border: none;
+            width: 30px;
+            height: 30px;
+            background: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -91,11 +195,11 @@
     <button onclick="addSlide()">+ New</button>
     <button onclick="duplicateSlide()">Copy</button>
     <button onclick="deleteSlide()" style="background:#f38ba8; color:#111">Delete</button>
-    <div style="border-left: 1px solid #444; height: 20px;"></div>
+    <div class="divider"></div>
     <button onclick="prevSlide()">Prev</button>
     <span id="slideIndicator" class="indicator">1 / 1</span>
     <button onclick="nextSlide()">Next</button>
-    <div style="border-left: 1px solid #444; height: 20px;"></div>
+    <div class="divider"></div>
     <button onclick="document.getElementById('imgInput').click()">Image Import</button>
     <input type="file" id="imgInput" hidden accept="image/*" onchange="importImage(event)">
     <select id="resSelect" onchange="changeResolution()" aria-label="canvas size">
@@ -106,7 +210,7 @@
         <option value="32,18">32x18</option>
     </select>
     <input type="color" id="bgPicker" value="#fff" aria-label="project background color">
-    <div style="border-left: 1px solid #444; height: 20px;"></div>
+    <div class="divider"></div>
     <button onclick="saveImage()">Save Image</button>
 
     <button onclick="saveProject()" style="background:#fab387; color:#111">Save JSON</button>
@@ -131,23 +235,24 @@
         <button onclick="setTool('line')" id="btn-line">Line</button>
         <button onclick="setTool('fill')" id="btn-fill">Fill</button>
     </div>
-    <input aria-label="brush size" type="range" id="brushSize" style="writing-mode: vertical-lr;" min="1" max="10">
+    <input aria-label="brush size" type="range" id="brushSize" min="1" max="10">
 </div>
     <div id="editor-area">
         <div id="canvas-wrapper">
             <canvas id="paintCanvas"></canvas>
             <canvas id="bufferCanvas"></canvas>
         </div>
-        <div style="width: 800px; margin-top: 15px;">
+        <div style="width: 100%; margin-top: 15px;">
             <label style="font-size:12px;">Slide Notes / Meta:</label>
             <div contenteditable id="slideNotes" oninput="slides[currentSlideIdx].notes = this.innerHTML"></div>
         </div>
     </div>
 
     <div class="sidebar">
-        <h4 style="margin:0 0 10px 0">Scripts</h4>
+        <h4 style="margin:0 0 10px 0">Scripts <button style="float:right" onclick="scriptList.classList.toggle('disabled');let txt = this.innerText; this.innerText = txt == 'v' ? '^' : 'v'">v</button></h4>
         <button onclick="scanForColors()" style="width:100%; background:#89dceb; color:#111; margin-bottom:15px;">Scan for Triggers</button>
         <div id="scriptList"></div>
+        <div><a href="https://github.com/hacknorris-code/paint-game-editor">source code</a></div>
     </div>
     <dialog closed id="devHelp">
         <button onclick="devHelp.close()" style="float:right">X</button>
@@ -166,7 +271,7 @@ Nav.setNotes("text");    //  set slide notes to value
 Nav.movePart(0,0,50,50,100,100); // move part of image - in this case a selection from topleft to 100,100 
 Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a selection from topleft (0,0-50,50) and 100,100 - 150,150
         </pre>
-        <p>additionally - <a href="https://github.com/hacknorris-code/paint-game-editor">here source code of engine</a></p>
+        <p>additionally - <a href="https://github.com/hacknorris-code/paint-game-editor">here source code of engine once again</a></p>
     </dialog>
 </main>
 
