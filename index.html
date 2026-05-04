@@ -191,16 +191,16 @@
 <body>
 
 <div class="toolbar">
-    <button onclick="clearSlide()" class="danger">Clear</button>
-    <button onclick="addSlide()">+ New</button>
-    <button onclick="duplicateSlide()">Copy</button>
-    <button onclick="deleteSlide()" style="background:#f38ba8; color:#111">Delete</button>
+    <button onclick="clearSlide()" class="danger">clear</button>
+    <button accesskey="a" onclick="addSlide()">Add</button>
+    <button onclick="duplicateSlide()">copy</button>
+    <button accesskey="d" onclick="deleteSlide()" style="background:#f38ba8; color:#111">Delete</button>
     <div class="divider"></div>
-    <button onclick="prevSlide()">Prev</button>
+    <button onclick="prevSlide()">prev</button>
     <span id="slideIndicator" class="indicator">1 / 1</span>
-    <button onclick="nextSlide()">Next</button>
+    <button onclick="nextSlide()">next</button>
     <div class="divider"></div>
-    <button onclick="document.getElementById('imgInput').click()">Image Import</button>
+    <button onclick="document.getElementById('imgInput').click()">image import</button>
     <input type="file" id="imgInput" hidden accept="image/*" onchange="importImage(event)">
     <select id="resSelect" onchange="changeResolution()" aria-label="canvas size">
         <option value="800,450">800x450</option>
@@ -211,29 +211,29 @@
     </select>
     <input type="color" id="bgPicker" value="#fff" aria-label="project background color">
     <div class="divider"></div>
-    <button onclick="saveImage()">Save Image</button>
+    <button onclick="saveImage()" accesskey="i">save Image</button>
 
-    <button onclick="saveProject()" style="background:#fab387; color:#111">Save JSON</button>
-    <button onclick="document.getElementById('projInput').click()" style="background:#fab387; color:#111">Load JSON</button>
+    <button onclick="saveProject()" accesskey="s" style="background:#fab387; color:#111">Save json</button>
+    <button onclick="document.getElementById('projInput').click()" style="background:#fab387; color:#111">load json</button>
     <input type="file" id="projInput" hidden accept=".json" onchange="loadProject(event)">
  
-   <button onclick="toggleMode()" id="modeBtn" class="accent">Play Mode</button>
-    <button onclick="exportHTML()" class="success" style="margin-left:auto;">Export HTML</button>
+   <button onclick="toggleMode()" accesskey="t" id="modeBtn" class="accent">Test mode</button>
+    <button onclick="exportHTML()" accesskey="x" class="success" style="margin-left:auto;">eXport html</button>
 
 </div>
 
 <main>
 <div class="toolbar vert">
     <div id="position"></div>
-    <button onclick="undo()" title="Undo">⟲</button>
+    <button accesskey="u" onclick="undo()" title="Undo">⟲</button>
     <div style="border-top: 1px solid #444; height: 20px;"></div>
     <input type="color" id="colorPicker" value="#ff0000" aria-label="brush color">
     <div class="tool-group vert">
-        <button onclick="setTool('pen')" id="btn-pen" class="active">Pen</button>
-        <button onclick="setTool('rect')" id="btn-rect">Rect</button>
-        <button onclick="setTool('circle')" id="btn-circle">Circ</button>
-        <button onclick="setTool('line')" id="btn-line">Line</button>
-        <button onclick="setTool('fill')" id="btn-fill">Fill</button>
+        <button accesskey="p" onclick="setTool('pen')" id="btn-pen" class="active">Pen</button>
+        <button accesskey="r" onclick="setTool('rect')" id="btn-rect">Rect</button>
+        <button accesskey="c" onclick="setTool('circle')" id="btn-circle">Circ</button>
+        <button accesskey="l" onclick="setTool('line')" id="btn-line">Line</button>
+        <button accesskey="f" onclick="setTool('fill')" id="btn-fill">Fill</button>
     </div>
     <input aria-label="brush size" type="range" id="brushSize" min="1" max="10">
 </div>
@@ -243,14 +243,17 @@
             <canvas id="bufferCanvas"></canvas>
         </div>
         <div style="width: 100%; margin-top: 15px;">
-            <label style="font-size:12px;">Slide Notes / Meta:</label>
+            <label style="font-size:12px;">notes:</label>
             <div contenteditable id="slideNotes" oninput="slides[currentSlideIdx].notes = this.innerHTML"></div>
         </div>
     </div>
 
     <div class="sidebar">
-        <h4 style="margin:0 0 10px 0">Scripts <button style="float:right" onclick="scriptList.classList.toggle('disabled');let txt = this.innerText; this.innerText = txt == 'v' ? '^' : 'v'">v</button></h4>
-        <button onclick="scanForColors()" style="width:100%; background:#89dceb; color:#111; margin-bottom:15px;">Scan for Triggers</button>
+        <h4 style="margin:0 0 10px 0;">draw script</h4>
+        <span style="float:left">f(x)=</span><textarea class="codefield" style="width:70%;float:left" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" id="drawscriptField"></textarea><button style="float:right" accesskey="w" onclick="drawScript(drawscriptField.value)">draW</button>
+        <br style="clear: both;"><br>
+        <h4 style="margin:0 0 10px 0;">slide scripts <button style="float:right" onclick="scriptList.classList.toggle('disabled');let txt = this.innerText; this.innerText = txt == 'v' ? '^' : 'v'">v</button></h4>
+        <button accesskey="s" onclick="scanForColors()" style="width:100%; background:#89dceb; color:#111; margin-bottom:15px;">Scan for triggers</button>
         <div id="scriptList"></div>
         <div><a href="https://github.com/hacknorris-code/paint-game-editor">source code</a></div>
     </div>
@@ -367,6 +370,74 @@ Nav.swapPart(0,0,50,50,100,100); // swap two parts of image - in this case a sel
         isDrawing = true;
         [startX, startY] = getCoords(e);
         if (tool === 'fill') floodFill(startX, startY, document.getElementById('colorPicker').value);
+    }
+
+    function makeFunction(expr) {
+        try {
+            return new Function("x", `return ${expr}`);
+        } catch {
+            return () => 0;
+        }
+    }
+
+function normalize(expr) {
+    return expr.replace(
+        /(?<![a-zA-Z])(sin|cos|tan|abs|acos|acosh|asin|asinh|atan|atanh|cbrt|ceil|cosh|exp|floor|hypot|log|pow|random|round|sinh|sqrt|tanh)\(|(?<![a-zA-Z])(PI|E|SQRT2|LN10|LN2|LOG10E|LOG2E|SQRT1_2)(?![a-zA-Z])/g,
+        (match, func, constant) => {
+            return func ? `Math.${func}(` : `Math.${constant}`;
+        }
+    );
+}
+
+function drawScript(expr) {
+    const f = makeFunction(normalize(expr));
+
+    const color = document.getElementById('colorPicker').value;
+    const size = parseInt(document.getElementById('brushSize').value);
+
+    const xMin = -10;
+    const xMax = 10;
+    const yMin = -10;
+    const yMax = 10;
+
+    for (let px = 0; px < vWidth; px++) {
+
+        // map pixel → math x
+        const x = xMin + (px / (vWidth - 1)) * (xMax - xMin);
+
+        let y;
+        try {
+            y = f(x);
+        } catch {
+            continue;
+        }
+
+        if (!isFinite(y)) continue;
+
+        // map math y → pixel
+        const py = yMin + (y - yMin) * (vHeight) / (yMax - yMin);
+
+        const canvasY = toCanvasY(py, vHeight);
+
+        drawPoint(ctx, px, Math.round(canvasY), color, size);
+    }
+}
+
+    function drawPoint(ctx, x, y, color, size) {
+        ctx.fillStyle = color;
+        ctx.fillRect(
+            x - Math.floor(size / 2),
+            y - Math.floor(size / 2),
+            size,
+            size
+        );
+        }
+
+    function toCanvasY(y, height) {
+        return height - y;
+    }
+    function mapToRange(x, inMin, inMax, outMin, outMax) {
+        return outMin + (x - inMin) * (outMax - outMin) / (inMax - inMin);
     }
 
     function move(e) {
